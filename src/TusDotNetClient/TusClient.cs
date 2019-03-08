@@ -50,11 +50,16 @@ namespace TusDotNetClient
         public string Create(string url, long uploadLength, Dictionary<string, string> metadata)
         {
             var requestUri = new Uri(url);
-            var client = new TusHttpClient {Proxy = Proxy};
+            var client = new TusHttpClient
+            {
+                Proxy = Proxy
+            };
 
             var request = new TusHttpRequest(url, RequestMethod.Post);
             foreach (var kvp in AdditionalHeaders)
+            {
                 request.AddHeader(kvp.Key, kvp.Value);
+            }
             request.AddHeader(TusHeaderNames.UploadLength, uploadLength.ToString());
             request.AddHeader(TusHeaderNames.ContentLength, "0");
 
@@ -65,16 +70,24 @@ namespace TusDotNetClient
             var response = client.PerformRequest(request);
 
             if (response.StatusCode != HttpStatusCode.Created)
+            {
                 throw new Exception("CreateFileInServer failed. " + response.ResponseString);
+            }
 
             if (!response.Headers.ContainsKey("Location"))
+            {
                 throw new Exception("Location Header Missing");
+            }
 
             if (!Uri.TryCreate(response.Headers["Location"], UriKind.RelativeOrAbsolute, out var locationUri))
+            {
                 throw new Exception("Invalid Location Header");
+            }
 
             if (!locationUri.IsAbsoluteUri)
+            {
                 locationUri = new Uri(requestUri, locationUri);
+            }
 
             return locationUri.ToString();
         }
@@ -93,9 +106,11 @@ namespace TusDotNetClient
             var client = new TusHttpClient();
             SHA1 sha = new SHA1Managed();
 
-            var chunkSize = (int) Math.Ceiling(_chunkSize * 1024.0 * 1024.0); // to MB
+            var chunkSize = (int)Math.Ceiling(_chunkSize * 1024.0 * 1024.0); // to MB
             if (offset == fs.Length)
+            {
                 OnUploadProgress(fs.Length, fs.Length);
+            }
 
             while (offset < fs.Length)
             {
@@ -106,7 +121,9 @@ namespace TusDotNetClient
                 var sha1Hash = sha.ComputeHash(buffer);
                 var request = new TusHttpRequest(url, RequestMethod.Patch, buffer, _cancellationSource.Token);
                 foreach (var kvp in AdditionalHeaders)
+                {
                     request.AddHeader(kvp.Key, kvp.Value);
+                }
                 request.AddHeader(TusHeaderNames.UploadOffset, offset.ToString());
                 request.AddHeader(TusHeaderNames.UploadChecksum, $"sha1 {Convert.ToBase64String(sha1Hash)}");
                 request.AddHeader(TusHeaderNames.ContentType, "application/offset+octet-stream");
@@ -149,7 +166,9 @@ namespace TusDotNetClient
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Get, null, _cancellationSource.Token);
             foreach (var kvp in AdditionalHeaders)
+            {
                 request.AddHeader(kvp.Key, kvp.Value);
+            }
             request.DownloadProgressed += OnDownloadProgress;
             var response = client.PerformRequest(request);
             return response;
@@ -160,7 +179,9 @@ namespace TusDotNetClient
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Head);
             foreach (var kvp in AdditionalHeaders)
+            {
                 request.AddHeader(kvp.Key, kvp.Value);
+            }
             try
             {
                 return client.PerformRequest(request);
@@ -176,10 +197,14 @@ namespace TusDotNetClient
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Options);
             foreach (var kvp in AdditionalHeaders)
+            {
                 request.AddHeader(kvp.Key, kvp.Value);
+            }
             var response = client.PerformRequest(request);
             if (response.StatusCode != HttpStatusCode.NoContent && response.StatusCode != HttpStatusCode.OK)
+            {
                 throw new Exception("getServerInfo failed. " + response.ResponseString);
+            }
 
             // Spec says NoContent but tusd gives OK because of browser bugs
             response.Headers.TryGetValue(TusHeaderNames.TusResumable, out var version);
@@ -195,7 +220,9 @@ namespace TusDotNetClient
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Delete);
             foreach (var kvp in AdditionalHeaders)
+            {
                 request.AddHeader(kvp.Key, kvp.Value);
+            }
             var response = client.PerformRequest(request);
 
             return response.StatusCode == HttpStatusCode.NoContent ||
@@ -214,14 +241,20 @@ namespace TusDotNetClient
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Head);
             foreach (var kvp in AdditionalHeaders)
+            {
                 request.AddHeader(kvp.Key, kvp.Value);
+            }
             var response = client.PerformRequest(request);
 
             if (response.StatusCode != HttpStatusCode.NoContent && response.StatusCode != HttpStatusCode.OK)
+            {
                 throw new Exception("getFileOffset failed. " + response.ResponseString);
+            }
 
             if (!response.Headers.ContainsKey("Upload-Offset"))
+            {
                 throw new Exception("Offset Header Missing");
+            }
 
             return long.Parse(response.Headers["Upload-Offset"]);
         }

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Shouldly;
 using TusDotNetClient;
 using Xunit;
@@ -18,15 +19,13 @@ namespace TusDotNetClientTests
         
         [Theory]
         [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
-        public void AfterCallingCreate_DataShouldContainAFile(FileInfo file)
+        public async Task AfterCallingCreate_DataShouldContainAFile(FileInfo file)
         {
             var sut = new TusClient();
 
-
-            var url = sut.Create(
+            var url = await sut.CreateAsync(
                 "http://localhost:1080/files/",
                 file);
-
 
             var upload = new FileInfo(Path.Combine(_dataDirectoryPath, $"{url.Split('/').Last()}.bin"));
             upload.Exists.ShouldBe(true);
@@ -35,15 +34,13 @@ namespace TusDotNetClientTests
 
         [Theory]
         [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
-        public void AfterCallingCreateAndUpload_UploadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file)
+        public async Task AfterCallingCreateAndUpload_UploadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file)
         {
             var sut = new TusClient();
 
-
-            var url = sut.Create("http://localhost:1080/files/", file);
-            sut.Upload(url, file);
-
-
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            await sut.UploadAsync(url, file);
+            
             var upload = new FileInfo(Path.Combine(_dataDirectoryPath, $"{url.Split('/').Last()}.bin"));
             upload.Exists.ShouldBe(true);
             upload.Length.ShouldBe(file.Length);
@@ -60,16 +57,14 @@ namespace TusDotNetClientTests
 
         [Theory]
         [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
-        public void AfterCallingDownload_DownloadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file)
+        public async Task AfterCallingDownload_DownloadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file)
         {
             var sut = new TusClient();
 
-
-            var url = sut.Create("http://localhost:1080/files/", file);
-            sut.Upload(url, file);
-            var response = sut.Download(url);
-
-
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            await sut.UploadAsync(url, file);
+            var response = await sut.DownloadAsync(url);
+            
             using (var fileStream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
             {
                 var fileBytes = new byte[fileStream.Length];
@@ -80,16 +75,14 @@ namespace TusDotNetClientTests
 
         [Theory]
         [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
-        public void CallingHead_ShouldReturnProgressOfUploadedFile(FileInfo file)
+        public async Task CallingHead_ShouldReturnProgressOfUploadedFile(FileInfo file)
         {
             var sut = new TusClient();
 
-
-            var url = sut.Create("http://localhost:1080/files/", file);
-            var headBeforeUpload = sut.Head(url);
-            sut.Upload(url, file);
-            var headAfterUpload = sut.Head(url);
-
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            var headBeforeUpload = await sut.Head(url);
+            await sut.UploadAsync(url, file);
+            var headAfterUpload = await sut.Head(url);
 
             headBeforeUpload.Headers.Keys.ShouldContain("Upload-Offset");
             headBeforeUpload.Headers["Upload-Offset"].ShouldBe("0");
@@ -98,14 +91,12 @@ namespace TusDotNetClientTests
         }
 
         [Fact]
-        public void CallingGetServerInfo_ShouldReturnServerInfo()
+        public async Task CallingGetServerInfo_ShouldReturnServerInfo()
         {
             var sut = new TusClient();
 
+            var response = await sut.GetServerInfo("http://localhost:1080/files/");
 
-            var response = sut.GetServerInfo("http://localhost:1080/files/");
-            
-            
             response.Version.ShouldNotBeNullOrWhiteSpace();
             response.Extensions.ShouldNotBeNullOrWhiteSpace();
             response.SupportedVersions.ShouldNotBeNullOrWhiteSpace();
@@ -113,17 +104,17 @@ namespace TusDotNetClientTests
 
         [Theory]
         [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
-        public void CallingDelete_ShouldRemoveUploadedFile(FileInfo file)
+        public async Task CallingDelete_ShouldRemoveUploadedFile(FileInfo file)
         {
             var sut = new TusClient();
 
 
-            var url = sut.Create("http://localhost:1080/files/", file);
-            sut.Upload(url, file);
-            var uploadHeadResponse = sut.Head(url);
-            var deleteResult = sut.Delete(url);
-            
-            
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            await sut.UploadAsync(url, file);
+            var uploadHeadResponse = await sut.Head(url);
+            var deleteResult = await sut.Delete(url);
+
+
             deleteResult.ShouldBe(true);
             uploadHeadResponse.Headers.Keys.ShouldContain("Upload-Offset");
             uploadHeadResponse.Headers["Upload-Offset"].ShouldBe(file.Length.ToString());

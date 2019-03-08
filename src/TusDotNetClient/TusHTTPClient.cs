@@ -2,6 +2,7 @@
 using System.IO;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TusDotNetClient
 {
@@ -9,14 +10,13 @@ namespace TusDotNetClient
     {
         public IWebProxy Proxy { get; set; }
 
-
-        public TusHttpResponse PerformRequest(TusHttpRequest request)
+        public async Task<TusHttpResponse> PerformRequestAsync(TusHttpRequest request)
         {
+            var segment = request.BodyBytes;
+
             try
             {
-                var inputStream = new MemoryStream(request.BodyBytes);
-
-                var webRequest = (HttpWebRequest) WebRequest.Create(request.Url);
+                var webRequest = WebRequest.CreateHttp(request.Url);
                 webRequest.AutomaticDecompression = DecompressionMethods.GZip;
 
                 webRequest.Timeout = Timeout.Infinite;
@@ -43,9 +43,8 @@ namespace TusDotNetClient
 
                 var totalBytesWritten = 0L;
 
-                var contentLength = inputStream.Length;
                 webRequest.AllowWriteStreamBuffering = false;
-                webRequest.ContentLength = inputStream.Length;
+                webRequest.ContentLength = segment.Count;
 
                 foreach (var header in request.Headers)
                     switch (header.Key)
@@ -61,62 +60,77 @@ namespace TusDotNetClient
                             break;
                     }
 
-                if (request.BodyBytes.Length > 0)
+                if (request.BodyBytes.Count > 0)
+                {
+                    var inputStream = new MemoryStream(request.BodyBytes.Array, request.BodyBytes.Offset, request.BodyBytes.Count);
+
                     using (var requestStream = webRequest.GetRequestStream())
                     {
                         inputStream.Seek(0, SeekOrigin.Begin);
-                        var bytesWritten = inputStream.Read(buffer, 0, buffer.Length);
 
-                        request.OnUploadProgressed(0, contentLength);
+                        var bytesWritten = await inputStream.ReadAsync(buffer, 0, buffer.Length, request.CancelToken)
+                            .ConfigureAwait(false);
+
+                        request.OnUploadProgressed(0, segment.Count);
+
                         while (bytesWritten > 0)
                         {
                             totalBytesWritten += bytesWritten;
 
-                            request.OnUploadProgressed(totalBytesWritten, contentLength);
+                            request.OnUploadProgressed(totalBytesWritten, segment.Count);
 
-                            requestStream.Write(buffer, 0, bytesWritten);
+                            await requestStream.WriteAsync(buffer, 0, bytesWritten, request.CancelToken)
+                                .ConfigureAwait(false);
 
-                            bytesWritten = inputStream.Read(buffer, 0, buffer.Length);
-
-                            request.CancelToken.ThrowIfCancellationRequested();
+                            bytesWritten = await inputStream.ReadAsync(buffer, 0, buffer.Length, request.CancelToken)
+                                .ConfigureAwait(false);
                         }
                     }
+                }
 
 
-                var response = (HttpWebResponse) webRequest.GetResponse();
+                var response = (HttpWebResponse)await webRequest.GetResponseAsync()
+                    .ConfigureAwait(false);
 
                 //contentLength=0 for gzipped responses due to .net bug
-                contentLength = Math.Max(response.ContentLength, 0);
+                long contentLength = Math.Max(response.ContentLength, 0);
 
                 buffer = new byte[16 * 1024];
                 var outputStream = new MemoryStream();
 
-                if (response.GetResponseStream() is Stream responseStream)
-                    using (responseStream)
+                using (var responseStream = response.GetResponseStream())
+                {
+                    if (responseStream != null)
                     {
                         var bytesRead = 0;
                         var totalBytesRead = 0L;
 
-                        bytesRead = responseStream.Read(buffer, 0, buffer.Length);
+                        bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length, request.CancelToken)
+                            .ConfigureAwait(false);
 
                         request.OnDownloadProgressed(0, contentLength);
+
                         while (bytesRead > 0)
                         {
                             totalBytesRead += bytesRead;
 
                             request.OnDownloadProgressed(totalBytesRead, contentLength);
 
-                            outputStream.Write(buffer, 0, bytesRead);
+                            await outputStream.WriteAsync(buffer, 0, bytesRead, request.CancelToken)
+                                .ConfigureAwait(false);
 
-                            bytesRead = responseStream.Read(buffer, 0, buffer.Length);
-
-                            request.CancelToken.ThrowIfCancellationRequested();
+                            bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length, request.CancelToken)
+                                .ConfigureAwait(false);
                         }
                     }
+                }
 
                 var resp = new TusHttpResponse(response.StatusCode, outputStream.ToArray());
+
                 foreach (string headerName in response.Headers.Keys)
+                {
                     resp.AddHeader(headerName, response.Headers[headerName]);
+                }
 
                 return resp;
             }

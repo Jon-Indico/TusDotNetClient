@@ -25,19 +25,19 @@ namespace TusDotNetClient
         public Uri Url { get; }
         public string Method { get; }
         public IReadOnlyDictionary<string, string> Headers => _headers;
-        public byte[] BodyBytes { get; }
+        public ArraySegment<byte> BodyBytes { get; }
 
         public CancellationToken CancelToken { get; }
 
         public TusHttpRequest(
             string url,
             RequestMethod method,
-            byte[] bodyBytes = null,
+            ArraySegment<byte> bodyBytes = default,
             CancellationToken? cancelToken = null)
         {
             Url = new Uri(url);
             Method = method.ToString().ToUpperInvariant();
-            BodyBytes = bodyBytes ?? Array.Empty<byte>();
+            BodyBytes = bodyBytes;
             CancelToken = cancelToken ?? CancellationToken.None;
             
             _headers.Add(TusHeaderNames.TusResumable, "1.0.0");

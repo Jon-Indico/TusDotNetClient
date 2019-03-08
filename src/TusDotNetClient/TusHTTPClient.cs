@@ -87,8 +87,7 @@ namespace TusDotNetClient
                         }
                     }
                 }
-
-
+                
                 var response = (HttpWebResponse)await webRequest.GetResponseAsync()
                     .ConfigureAwait(false);
 

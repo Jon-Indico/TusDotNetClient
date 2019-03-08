@@ -251,12 +251,12 @@ namespace TusDotNetClient
                 throw new Exception("getFileOffset failed. " + response.ResponseString);
             }
 
-            if (!response.Headers.ContainsKey("Upload-Offset"))
+            if (!response.Headers.ContainsKey(TusHeaderNames.UploadOffset))
             {
                 throw new Exception("Offset Header Missing");
             }
 
-            return long.Parse(response.Headers["Upload-Offset"]);
+            return long.Parse(response.Headers[TusHeaderNames.UploadOffset]);
         }
     }
 }

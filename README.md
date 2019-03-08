@@ -11,8 +11,8 @@
 ```c#
 var file = new FileInfo(@"path/to/file.ext");
 var client = new TusClient(ChunkSize);
-var fileUrl = client.Create(Address, file, metadata);
-client.Upload(fileUrl, file);
+var fileUrl = await client.CreateAsync(Address, file, metadata);
+await client.UploadAsync(fileUrl, file);
 ```
 
 ## License

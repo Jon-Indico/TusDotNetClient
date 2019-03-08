@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace TusDotNetClient
 {
@@ -36,18 +37,19 @@ namespace TusDotNetClient
             _cancellationSource.Cancel();
         }
 
-        public string Create(string url, FileInfo file, params (string key, string value)[] metadata)
+        public Task<string> CreateAsync(string url, FileInfo file, params (string key, string value)[] metadata)
         {
             var metadataDictionary = metadata.ToDictionary(md => md.key, md => md.value);
+
             if (!metadataDictionary.ContainsKey("filename"))
             {
                 metadataDictionary["filename"] = file.Name;
             }
 
-            return Create(url, file.Length, metadataDictionary);
+            return CreateAsync(url, file.Length, metadataDictionary);
         }
 
-        public string Create(string url, long uploadLength, Dictionary<string, string> metadata)
+        public async Task<string> CreateAsync(string url, long uploadLength, Dictionary<string, string> metadata)
         {
             var requestUri = new Uri(url);
             var client = new TusHttpClient
@@ -56,10 +58,12 @@ namespace TusDotNetClient
             };
 
             var request = new TusHttpRequest(url, RequestMethod.Post);
+
             foreach (var kvp in AdditionalHeaders)
             {
                 request.AddHeader(kvp.Key, kvp.Value);
             }
+
             request.AddHeader(TusHeaderNames.UploadLength, uploadLength.ToString());
             request.AddHeader(TusHeaderNames.ContentLength, "0");
 
@@ -67,7 +71,8 @@ namespace TusDotNetClient
                 .Select(md =>
                     $"{md.Key.Replace(" ", "").Replace(",", "")} {Convert.ToBase64String(Encoding.UTF8.GetBytes(md.Value))}")));
 
-            var response = client.PerformRequest(request);
+            var response = await client.PerformRequestAsync(request)
+                .ConfigureAwait(false);
 
             if (response.StatusCode != HttpStatusCode.Created)
             {
@@ -92,47 +97,60 @@ namespace TusDotNetClient
             return locationUri.ToString();
         }
 
-        public void Upload(string url, FileInfo file)
+        public async Task UploadAsync(string url, FileInfo file)
         {
-            using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
+            using (var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 5 * 1024 * 1024, true))
             {
-                Upload(url, fs);
+                await UploadAsync(url, fs)
+                    .ConfigureAwait(false);
             }
         }
 
-        public void Upload(string url, Stream fs)
+        public async Task UploadAsync(string url, Stream fs)
         {
-            var offset = GetFileOffset(url);
+            var offset = await GetFileOffset(url)
+                .ConfigureAwait(false);
+
             var client = new TusHttpClient();
             SHA1 sha = new SHA1Managed();
 
             var chunkSize = (int)Math.Ceiling(_chunkSize * 1024.0 * 1024.0); // to MB
+
             if (offset == fs.Length)
             {
                 OnUploadProgress(fs.Length, fs.Length);
             }
 
+            var buffer = new byte[chunkSize];
+
             while (offset < fs.Length)
             {
                 fs.Seek(offset, SeekOrigin.Begin);
-                var buffer = new byte[chunkSize];
-                var bytesRead = fs.Read(buffer, 0, chunkSize);
-                Array.Resize(ref buffer, bytesRead);
-                var sha1Hash = sha.ComputeHash(buffer);
-                var request = new TusHttpRequest(url, RequestMethod.Patch, buffer, _cancellationSource.Token);
+                
+                var bytesRead = await fs.ReadAsync(buffer, 0, chunkSize);               
+                var segment = new ArraySegment<byte>(buffer, 0, bytesRead);
+                var sha1Hash = sha.ComputeHash(buffer, 0, bytesRead);
+
+                var request = new TusHttpRequest(url, RequestMethod.Patch,segment, _cancellationSource.Token);
+
                 foreach (var kvp in AdditionalHeaders)
                 {
                     request.AddHeader(kvp.Key, kvp.Value);
                 }
+
                 request.AddHeader(TusHeaderNames.UploadOffset, offset.ToString());
                 request.AddHeader(TusHeaderNames.UploadChecksum, $"sha1 {Convert.ToBase64String(sha1Hash)}");
                 request.AddHeader(TusHeaderNames.ContentType, "application/offset+octet-stream");
 
                 try
                 {
-                    var response = client.PerformRequest(request);
+                    var response = await client.PerformRequestAsync(request)
+                        .ConfigureAwait(false);
+
                     if (response.StatusCode != HttpStatusCode.NoContent)
+                    {
                         throw new Exception("WriteFileInServer failed. " + response.ResponseString);
+                    }
 
                     offset = long.Parse(response.Headers[TusHeaderNames.UploadOffset]);
 
@@ -146,7 +164,8 @@ namespace TusDotNetClient
                         {
                             // retry by continuing the while loop
                             // but get new offset from server to prevent Conflict error
-                            offset = GetFileOffset(url);
+                            offset = await GetFileOffset(url)
+                                .ConfigureAwait(false);
                         }
                         else
                         {
@@ -161,20 +180,25 @@ namespace TusDotNetClient
             }
         }
 
-        public TusHttpResponse Download(string url)
+        public async Task<TusHttpResponse> DownloadAsync(string url)
         {
             var client = new TusHttpClient();
-            var request = new TusHttpRequest(url, RequestMethod.Get, null, _cancellationSource.Token);
+            var request = new TusHttpRequest(url, RequestMethod.Get, cancelToken: _cancellationSource.Token);
+
             foreach (var kvp in AdditionalHeaders)
             {
                 request.AddHeader(kvp.Key, kvp.Value);
             }
+
             request.DownloadProgressed += OnDownloadProgress;
-            var response = client.PerformRequest(request);
+
+            var response = await client.PerformRequestAsync(request)
+                .ConfigureAwait(false);
+
             return response;
         }
 
-        public TusHttpResponse Head(string url)
+        public async Task<TusHttpResponse> Head(string url)
         {
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Head);
@@ -184,7 +208,8 @@ namespace TusDotNetClient
             }
             try
             {
-                return client.PerformRequest(request);
+                return await client.PerformRequestAsync(request)
+                    .ConfigureAwait(false);
             }
             catch (TusException ex)
             {
@@ -192,15 +217,19 @@ namespace TusDotNetClient
             }
         }
 
-        public TusServerInfo GetServerInfo(string url)
+        public async Task<TusServerInfo> GetServerInfo(string url)
         {
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Options);
+
             foreach (var kvp in AdditionalHeaders)
             {
                 request.AddHeader(kvp.Key, kvp.Value);
             }
-            var response = client.PerformRequest(request);
+
+            var response = await client.PerformRequestAsync(request)
+                .ConfigureAwait(false);
+
             if (response.StatusCode != HttpStatusCode.NoContent && response.StatusCode != HttpStatusCode.OK)
             {
                 throw new Exception("getServerInfo failed. " + response.ResponseString);
@@ -215,7 +244,7 @@ namespace TusDotNetClient
             return new TusServerInfo(version, supportedVersion, extensions, maxSize);
         }
 
-        public bool Delete(string url)
+        public async Task<bool> Delete(string url)
         {
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Delete);
@@ -223,7 +252,8 @@ namespace TusDotNetClient
             {
                 request.AddHeader(kvp.Key, kvp.Value);
             }
-            var response = client.PerformRequest(request);
+            var response = await client.PerformRequestAsync(request)
+                .ConfigureAwait(false);
 
             return response.StatusCode == HttpStatusCode.NoContent ||
                    response.StatusCode == HttpStatusCode.NotFound ||
@@ -236,15 +266,18 @@ namespace TusDotNetClient
         public void OnDownloadProgress(long bytesTransferred, long bytesTotal) =>
             DownloadProgress?.Invoke(bytesTransferred, bytesTotal);
 
-        private long GetFileOffset(string url)
+        private async Task<long> GetFileOffset(string url)
         {
             var client = new TusHttpClient();
             var request = new TusHttpRequest(url, RequestMethod.Head);
+
             foreach (var kvp in AdditionalHeaders)
             {
                 request.AddHeader(kvp.Key, kvp.Value);
             }
-            var response = client.PerformRequest(request);
+
+            var response = await client.PerformRequestAsync(request)
+                .ConfigureAwait(false);
 
             if (response.StatusCode != HttpStatusCode.NoContent && response.StatusCode != HttpStatusCode.OK)
             {

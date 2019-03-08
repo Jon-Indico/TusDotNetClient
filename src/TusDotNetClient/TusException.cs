@@ -7,18 +7,16 @@ namespace TusDotNetClient
 {
     public class TusException : WebException
     {
-
         public string ResponseContent { get; }
         public HttpStatusCode StatusCode { get; }
         public string StatusDescription { get; }
-
 
         public WebException OriginalException { get; }
 
         public TusException(OperationCanceledException ex)
             : base(ex.Message, ex, WebExceptionStatus.RequestCanceled, null)
         {
-            OriginalException = null;           
+            OriginalException = null;
         }
 
         public TusException(TusException ex, string message)
@@ -38,12 +36,14 @@ namespace TusDotNetClient
 
             if (ex.Response is HttpWebResponse webResponse &&
                 webResponse.GetResponseStream() is Stream responseStream)
+            {
                 using (var reader = new StreamReader(responseStream))
                 {
                     StatusCode = webResponse.StatusCode;
                     StatusDescription = webResponse.StatusDescription;
                     ResponseContent = reader.ReadToEnd();
                 }
+            }
         }
 
         public string FullMessage
@@ -54,15 +54,21 @@ namespace TusDotNetClient
                 {
                     Message
                 };
-                
+
                 if (Response is WebResponse response)
+                {
                     bits.Add($"URL:{response.ResponseUri}");
-                
+                }
+
                 if (StatusCode != HttpStatusCode.OK)
+                {
                     bits.Add($"{StatusCode}:{StatusDescription}");
-                
+                }
+
                 if (!string.IsNullOrEmpty(ResponseContent))
+                {
                     bits.Add(ResponseContent);
+                }
 
                 return string.Join(Environment.NewLine, bits);
             }

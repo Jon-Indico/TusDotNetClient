@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Text;
 
@@ -6,7 +7,7 @@ namespace TusDotNetClient
 {
     public class TusHttpResponse
     {
-        private readonly Dictionary<string, string> _headers = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> _headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public HttpStatusCode StatusCode { get; }
         public IReadOnlyDictionary<string, string> Headers => _headers;

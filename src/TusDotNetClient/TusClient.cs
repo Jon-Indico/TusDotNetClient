@@ -20,7 +20,7 @@ namespace TusDotNetClient
 
         private readonly double _chunkSize;
 
-        public Dictionary<string, string> AdditionalHeaders { get; } = new Dictionary<string, string>();
+        public Dictionary<string, string> AdditionalHeaders { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public TusClient() : this(5.0)
         {

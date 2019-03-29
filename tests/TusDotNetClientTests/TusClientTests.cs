@@ -25,7 +25,7 @@ namespace TusDotNetClientTests
 
             var url = await sut.CreateAsync(
                 "http://localhost:1080/files/",
-                file);
+                file.Length);
 
             var upload = new FileInfo(Path.Combine(_dataDirectoryPath, $"{url.Split('/').Last()}.bin"));
             upload.Exists.ShouldBe(true);
@@ -38,7 +38,7 @@ namespace TusDotNetClientTests
         {
             var sut = new TusClient();
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
             await sut.UploadAsync(url, file);
             
             var upload = new FileInfo(Path.Combine(_dataDirectoryPath, $"{url.Split('/').Last()}.bin"));
@@ -61,7 +61,7 @@ namespace TusDotNetClientTests
         {
             var sut = new TusClient();
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
             await sut.UploadAsync(url, file);
             var response = await sut.DownloadAsync(url);
             
@@ -79,7 +79,7 @@ namespace TusDotNetClientTests
         {
             var sut = new TusClient();
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
             var headBeforeUpload = await sut.HeadAsync(url);
             await sut.UploadAsync(url, file);
             var headAfterUpload = await sut.HeadAsync(url);
@@ -109,7 +109,7 @@ namespace TusDotNetClientTests
             var sut = new TusClient();
 
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
             await sut.UploadAsync(url, file);
             var uploadHeadResponse = await sut.HeadAsync(url);
             var deleteResult = await sut.Delete(url);

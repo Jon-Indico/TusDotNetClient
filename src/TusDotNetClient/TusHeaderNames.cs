@@ -1,5 +1,8 @@
 namespace TusDotNetClient
 {
+    /// <summary>
+    /// A collection of the header names used by the Tus protocol.
+    /// </summary>
     public static class TusHeaderNames
     {
         public const string TusResumable = "Tus-Resumable";

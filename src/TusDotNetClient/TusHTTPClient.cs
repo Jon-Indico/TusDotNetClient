@@ -7,10 +7,22 @@ using System.Threading.Tasks;
 
 namespace TusDotNetClient
 {
+    /// <summary>
+    /// A class to execute requests against a Tus enabled server.
+    /// </summary>
     public class TusHttpClient
     {
+        /// <summary>
+        /// Get or set the proxy to use for requests.
+        /// </summary>
         public IWebProxy Proxy { get; set; }
 
+        /// <summary>
+        /// Perform a request to the Tus server.
+        /// </summary>
+        /// <param name="request">The <see cref="TusHttpRequest"/> to execute.</param>
+        /// <returns>A <see cref="TusHttpResponse"/> with the response data.</returns>
+        /// <exception cref="TusException">Throws when the request fails.</exception>
         public async Task<TusHttpResponse> PerformRequestAsync(TusHttpRequest request)
         {
             var segment = request.BodyBytes;

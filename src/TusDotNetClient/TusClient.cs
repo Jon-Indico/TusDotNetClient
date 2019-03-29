@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,13 +11,30 @@ using System.Threading.Tasks;
 
 namespace TusDotNetClient
 {
-    public partial class TusClient
+    /// <summary>
+    /// A class to perform actions against a Tus enabled server.
+    /// </summary>
+    public class TusClient
     {
+        /// <summary>
+        /// A mutable dictionary of headers which will be included with all requests.
+        /// </summary>
         public Dictionary<string, string> AdditionalHeaders { get; } =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Get or set the proxy to use when making requests.
+        /// </summary>
         public IWebProxy Proxy { get; set; }
 
+        /// <summary>
+        /// Create a file at the Tus server.
+        /// </summary>
+        /// <param name="url">URL to the creation endpoint of the Tus server.</param>
+        /// <param name="uploadLength">The byte size of the file which will be uploaded.</param>
+        /// <param name="metadata">Metadata to be stored alongside the file.</param>
+        /// <returns>The URL to the created file.</returns>
+        /// <exception cref="Exception">Throws if the response doesn't contain the required information.</exception>
         public async Task<string> CreateAsync(string url, long uploadLength,
             params (string key, string value)[] metadata)
         {
@@ -54,8 +71,14 @@ namespace TusDotNetClient
             return locationUri.ToString();
         }
 
-        public TusOperation<Unit> UploadAsync(string url, FileInfo file) =>
-            UploadAsync(url, new FileStream(file.FullName,
+        /// <summary>
+        /// Upload a file to the Tus server.
+        /// </summary>
+        /// <param name="url">URL to a previously created file.</param>
+        /// <param name="file">The file to upload.</param>
+        /// <param name="chunkSize">The size, in megabytes, of each file chunk when uploading.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the operation with.</param>
+        /// <returns>A <see cref="TusOperation{T}"/> which represents the upload operation.</returns>
         public TusOperation<Unit> UploadAsync(
             string url,
             FileInfo file,
@@ -68,9 +91,15 @@ namespace TusDotNetClient
                     5 * 1024 * 1024, true),
                 chunkSize,
                 cancellationToken);
-                FileMode.Open, FileAccess.Read, FileShare.Read,
-                5 * 1024 * 1024, true));
 
+        /// <summary>
+        /// Upload a file to the Tus server.
+        /// </summary>
+        /// <param name="url">URL to a previously created file.</param>
+        /// <param name="fileStream">A file stream of the file to upload. The stream will be closed automatically.</param>
+        /// <param name="chunkSize">The size, in megabytes, of each file chunk when uploading.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the operation with.</param>
+        /// <returns>A <see cref="TusOperation{T}"/> which represents the upload operation.</returns>
         public TusOperation<Unit> UploadAsync(
             string url,
             Stream fileStream,
@@ -93,8 +122,9 @@ namespace TusDotNetClient
 
                     var buffer = new byte[uploadChunkSize];
 
-                    void OnProgress(long written, long total) => 
+                    void OnProgress(long written, long total) =>
                         reportProgress(offset + written, fileStream.Length);
+
                     while (offset < fileStream.Length)
                     {
                         fileStream.Seek(offset, SeekOrigin.Begin);
@@ -156,6 +186,12 @@ namespace TusDotNetClient
                 }
             });
 
+        /// <summary>
+        /// Download a file from the Tus server.
+        /// </summary>
+        /// <param name="url">The URL of a file at the Tus server.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the operation with.</param>
+        /// <returns>A <see cref="TusOperation{T}"/> which represents the download operation.</returns>
         public TusOperation<TusHttpResponse> DownloadAsync(string url, CancellationToken cancellationToken = default) =>
             new TusOperation<TusHttpResponse>(
                 async reportProgress =>
@@ -177,6 +213,11 @@ namespace TusDotNetClient
                     return response;
                 });
 
+        /// <summary>
+        /// Send a HEAD request to the Tus server.
+        /// </summary>
+        /// <param name="url">The endpoint to post the HEAD request to.</param>
+        /// <returns>The response from the Tus server.</returns>
         public async Task<TusHttpResponse> HeadAsync(string url)
         {
             var client = new TusHttpClient();
@@ -193,6 +234,12 @@ namespace TusDotNetClient
             }
         }
 
+        /// <summary>
+        /// Get information about the Tus server.
+        /// </summary>
+        /// <param name="url">The URL of the Tus enabled endpoint.</param>
+        /// <returns>A <see cref="TusServerInfo"/> containing information about the Tus server.</returns>
+        /// <exception cref="Exception">Throws if request fails.</exception>
         public async Task<TusServerInfo> GetServerInfo(string url)
         {
             var client = new TusHttpClient();
@@ -214,6 +261,11 @@ namespace TusDotNetClient
             return new TusServerInfo(version, supportedVersions, extensions, maxSize, checksumAlgorithms);
         }
 
+        /// <summary>
+        /// Delete a file from the Tus server.
+        /// </summary>
+        /// <param name="url">The URL of the file at the Tus server.</param>
+        /// <returns>A <see cref="bool"/> indicating whether the file is deleted.</returns>
         public async Task<bool> Delete(string url)
         {
             var client = new TusHttpClient();

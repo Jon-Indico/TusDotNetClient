@@ -16,7 +16,7 @@ namespace TusDotNetClient
 
     public class TusHttpRequest
     {
-        private readonly Dictionary<string, string> _headers = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> _headers;
         
         public event ProgressDelegate UploadProgressed;
 
@@ -32,6 +32,7 @@ namespace TusDotNetClient
         public TusHttpRequest(
             string url,
             RequestMethod method,
+            IDictionary<string, string> additionalHeaders = null,
             ArraySegment<byte> bodyBytes = default,
             CancellationToken? cancelToken = null)
         {
@@ -39,7 +40,10 @@ namespace TusDotNetClient
             Method = method.ToString().ToUpperInvariant();
             BodyBytes = bodyBytes;
             CancelToken = cancelToken ?? CancellationToken.None;
-            
+
+            _headers = additionalHeaders is null
+                ? new Dictionary<string, string>(1)
+                : new Dictionary<string, string>(additionalHeaders); 
             _headers.Add(TusHeaderNames.TusResumable, "1.0.0");
         }
 

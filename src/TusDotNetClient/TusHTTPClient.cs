@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,8 +29,7 @@ namespace TusDotNetClient
 
                 try
                 {
-                    var currentServicePoint = webRequest.ServicePoint;
-                    currentServicePoint.Expect100Continue = false;
+                    webRequest.ServicePoint.Expect100Continue = false;
                 }
                 catch (PlatformNotSupportedException)
                 {
@@ -62,7 +62,8 @@ namespace TusDotNetClient
 
                 if (request.BodyBytes.Count > 0)
                 {
-                    var inputStream = new MemoryStream(request.BodyBytes.Array, request.BodyBytes.Offset, request.BodyBytes.Count);
+                    var inputStream = new MemoryStream(request.BodyBytes.Array, request.BodyBytes.Offset,
+                        request.BodyBytes.Count);
 
                     using (var requestStream = webRequest.GetRequestStream())
                     {
@@ -87,28 +88,27 @@ namespace TusDotNetClient
                         }
                     }
                 }
-                
-                var response = (HttpWebResponse)await webRequest.GetResponseAsync()
+
+                var response = (HttpWebResponse) await webRequest.GetResponseAsync()
                     .ConfigureAwait(false);
 
                 //contentLength=0 for gzipped responses due to .net bug
                 long contentLength = Math.Max(response.ContentLength, 0);
 
                 buffer = new byte[16 * 1024];
+
                 var outputStream = new MemoryStream();
 
                 using (var responseStream = response.GetResponseStream())
                 {
                     if (responseStream != null)
                     {
-                        var bytesRead = 0;
-                        var totalBytesRead = 0L;
-
-                        bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length, request.CancelToken)
+                        var bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length, request.CancelToken)
                             .ConfigureAwait(false);
 
                         request.OnDownloadProgressed(0, contentLength);
 
+                        var totalBytesRead = 0L;
                         while (bytesRead > 0)
                         {
                             totalBytesRead += bytesRead;
@@ -124,14 +124,11 @@ namespace TusDotNetClient
                     }
                 }
 
-                var resp = new TusHttpResponse(response.StatusCode, outputStream.ToArray());
-
-                foreach (string headerName in response.Headers.Keys)
-                {
-                    resp.AddHeader(headerName, response.Headers[headerName]);
-                }
-
-                return resp;
+                return new TusHttpResponse(
+                    response.StatusCode,
+                    response.Headers.AllKeys
+                        .ToDictionary(headerName => headerName, headerName => response.Headers.Get(headerName)),
+                    outputStream.ToArray());
             }
             catch (OperationCanceledException cancelEx)
             {

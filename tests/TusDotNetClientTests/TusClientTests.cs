@@ -80,9 +80,9 @@ namespace TusDotNetClientTests
             var sut = new TusClient();
 
             var url = await sut.CreateAsync("http://localhost:1080/files/", file);
-            var headBeforeUpload = await sut.Head(url);
+            var headBeforeUpload = await sut.HeadAsync(url);
             await sut.UploadAsync(url, file);
-            var headAfterUpload = await sut.Head(url);
+            var headAfterUpload = await sut.HeadAsync(url);
 
             headBeforeUpload.Headers.Keys.ShouldContain("Upload-Offset");
             headBeforeUpload.Headers["Upload-Offset"].ShouldBe("0");
@@ -111,7 +111,7 @@ namespace TusDotNetClientTests
 
             var url = await sut.CreateAsync("http://localhost:1080/files/", file);
             await sut.UploadAsync(url, file);
-            var uploadHeadResponse = await sut.Head(url);
+            var uploadHeadResponse = await sut.HeadAsync(url);
             var deleteResult = await sut.Delete(url);
 
 

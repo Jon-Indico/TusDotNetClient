@@ -10,7 +10,6 @@ namespace TusDotNetClient
         public string ResponseContent { get; }
         public HttpStatusCode StatusCode { get; }
         public string StatusDescription { get; }
-
         public WebException OriginalException { get; }
 
         public TusException(OperationCanceledException ex)

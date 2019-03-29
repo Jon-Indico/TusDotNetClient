@@ -10,6 +10,7 @@
     <RepositoryUrl>https://github.com/Jon-Indico/TusDotNetClient</RepositoryUrl>
     <PackageProjectUrl>https://github.com/Jon-Indico/TusDotNetClient</PackageProjectUrl>
     <License>MIT</License>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
 </Project>

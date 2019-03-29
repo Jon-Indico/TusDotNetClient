@@ -73,12 +73,12 @@ namespace TusDotNetClient
             return locationUri.ToString();
         }
 
-        public Task UploadAsync(string url, FileInfo file)
+        public async Task UploadAsync(string url, FileInfo file)
         {
             using (var fs = new FileStream(file.FullName,
                 FileMode.Open, FileAccess.Read, FileShare.Read,
                 5 * 1024 * 1024, true))
-                return UploadAsync(url, fs);
+                await UploadAsync(url, fs);
         }
 
         public async Task UploadAsync(string url, Stream fileStream)

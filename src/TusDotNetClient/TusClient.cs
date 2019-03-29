@@ -38,7 +38,7 @@ namespace TusDotNetClient
             _cancellationSource.Cancel();
         }
 
-        public async Task<string> CreateAsync(string url, long uploadLength, (string key, string value)[] metadata)
+        public async Task<string> CreateAsync(string url, long uploadLength, params (string key, string value)[] metadata)
         {
             var requestUri = new Uri(url);
             var client = new TusHttpClient

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -56,6 +56,18 @@ namespace TusDotNetClient
 
         public TusOperation<Unit> UploadAsync(string url, FileInfo file) =>
             UploadAsync(url, new FileStream(file.FullName,
+        public TusOperation<Unit> UploadAsync(
+            string url,
+            FileInfo file,
+            double chunkSize = 5.0,
+            CancellationToken cancellationToken = default) =>
+            UploadAsync(
+                url,
+                new FileStream(file.FullName,
+                    FileMode.Open, FileAccess.Read, FileShare.Read,
+                    5 * 1024 * 1024, true),
+                chunkSize,
+                cancellationToken);
                 FileMode.Open, FileAccess.Read, FileShare.Read,
                 5 * 1024 * 1024, true));
 

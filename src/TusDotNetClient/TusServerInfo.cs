@@ -14,11 +14,11 @@ namespace TusDotNetClient
         /// <summary>
         /// Get a list of versions of the protocol the Tus server supports.
         /// </summary>
-        public string SupportedVersions { get; }
+        public string[] SupportedVersions { get; }
         /// <summary>
         /// Get the protocol extensions supported by the Tus server.
         /// </summary>
-        public string Extensions { get; }
+        public string[] Extensions { get; }
         /// <summary>
         /// Get the maximum total size of a single file supported by the Tus server. 
         /// </summary>
@@ -49,8 +49,8 @@ namespace TusDotNetClient
             string checksumAlgorithms)
         {
             Version = version ?? "";
-            SupportedVersions = supportedVersions ?? "";
-            Extensions = extensions ?? "";
+            SupportedVersions = (supportedVersions ?? "").Trim().Split(',').ToArray();
+            Extensions = (extensions ?? "").Trim().Split(',').ToArray();
             MaxSize = maxSize ?? 0;
             SupportedChecksumAlgorithms = (checksumAlgorithms ?? "").Trim().Split(',').ToArray();
         }

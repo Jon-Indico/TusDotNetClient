@@ -98,8 +98,8 @@ namespace TusDotNetClientTests
             var response = await sut.GetServerInfo("http://localhost:1080/files/");
 
             response.Version.ShouldNotBeNullOrWhiteSpace();
-            response.Extensions.ShouldNotBeNullOrWhiteSpace();
-            response.SupportedVersions.ShouldNotBeNullOrWhiteSpace();
+            response.Extensions.ShouldNotBeEmpty();
+            response.SupportedVersions.ShouldNotBeEmpty();
         }
 
         [Theory]

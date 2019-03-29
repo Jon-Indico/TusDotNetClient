@@ -1,6 +1,6 @@
 namespace TusDotNetClient
 {
-    public class TusHeaderNames
+    public static class TusHeaderNames
     {
         public const string TusResumable = "Tus-Resumable";
         public const string TusVersion = "Tus-Version";

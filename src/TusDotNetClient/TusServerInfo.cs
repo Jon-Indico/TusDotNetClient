@@ -7,11 +7,11 @@ namespace TusDotNetClient
             public string Version { get; }
             public string SupportedVersions { get; }
             public string Extensions { get; }
-            public long MaxSize { get; }
+            public ulong MaxSize { get; }
 
             public bool SupportsDelete => Extensions.Contains("termination");
 
-            public TusServerInfo(string version, string supportedVersions, string extensions, long? maxSize)
+            public TusServerInfo(string version, string supportedVersions, string extensions, ulong? maxSize)
             {
                 Version = version ?? "";
                 SupportedVersions = supportedVersions ?? "";

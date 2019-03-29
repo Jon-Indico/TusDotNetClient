@@ -13,32 +13,13 @@ namespace TusDotNetClient
 {
     public partial class TusClient
     {
-        public event ProgressDelegate UploadProgress;
-
-        public event ProgressDelegate DownloadProgress;
-
-        private readonly CancellationTokenSource _cancellationSource = new CancellationTokenSource();
-
-        private readonly double _chunkSize;
-
         public Dictionary<string, string> AdditionalHeaders { get; } =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        public TusClient() : this(5.0)
-        {
-        }
-
-        public TusClient(double chunkSize) =>
-            _chunkSize = chunkSize;
-
         public IWebProxy Proxy { get; set; }
 
-        public void Cancel()
-        {
-            _cancellationSource.Cancel();
-        }
-
-        public async Task<string> CreateAsync(string url, long uploadLength, params (string key, string value)[] metadata)
+        public async Task<string> CreateAsync(string url, long uploadLength,
+            params (string key, string value)[] metadata)
         {
             var requestUri = new Uri(url);
             var client = new TusHttpClient
@@ -73,94 +54,116 @@ namespace TusDotNetClient
             return locationUri.ToString();
         }
 
-        public async Task UploadAsync(string url, FileInfo file)
-        {
-            using (var fs = new FileStream(file.FullName,
+        public TusOperation<Unit> UploadAsync(string url, FileInfo file) =>
+            UploadAsync(url, new FileStream(file.FullName,
                 FileMode.Open, FileAccess.Read, FileShare.Read,
-                5 * 1024 * 1024, true))
-                await UploadAsync(url, fs);
-        }
+                5 * 1024 * 1024, true));
 
-        public async Task UploadAsync(string url, Stream fileStream)
-        {
-            var offset = await GetFileOffset(url)
-                .ConfigureAwait(false);
-
-            var client = new TusHttpClient();
-            SHA1 sha = new SHA1Managed();
-
-            var chunkSize = (int) Math.Ceiling(_chunkSize * 1024.0 * 1024.0); // to MB
-
-            if (offset == fileStream.Length) 
-                OnUploadProgress(fileStream.Length, fileStream.Length);
-
-            var buffer = new byte[chunkSize];
-
-            while (offset < fileStream.Length)
+        public TusOperation<Unit> UploadAsync(
+            string url,
+            Stream fileStream,
+            double chunkSize = 5.0,
+            CancellationToken cancellationToken = default) => new TusOperation<Unit>(
+            async reportProgress =>
             {
-                fileStream.Seek(offset, SeekOrigin.Begin);
-
-                var bytesRead = await fileStream.ReadAsync(buffer, 0, chunkSize);
-                var segment = new ArraySegment<byte>(buffer, 0, bytesRead);
-                var sha1Hash = sha.ComputeHash(buffer, 0, bytesRead);
-
-                var request = new TusHttpRequest(url, RequestMethod.Patch, AdditionalHeaders, segment, _cancellationSource.Token);
-                request.AddHeader(TusHeaderNames.UploadOffset, offset.ToString());
-                request.AddHeader(TusHeaderNames.UploadChecksum, $"sha1 {Convert.ToBase64String(sha1Hash)}");
-                request.AddHeader(TusHeaderNames.ContentType, "application/offset+octet-stream");
-
                 try
                 {
+                    var offset = await GetFileOffset(url)
+                        .ConfigureAwait(false);
+
+                    var client = new TusHttpClient();
+                    SHA1 sha = new SHA1Managed();
+
+                    var uploadChunkSize = (int) Math.Ceiling(chunkSize * 1024.0 * 1024.0); // to MB
+
+                    if (offset == fileStream.Length)
+                        reportProgress(fileStream.Length, fileStream.Length);
+
+                    var buffer = new byte[uploadChunkSize];
+
+                    void OnProgress(long written, long total) => 
+                        reportProgress(offset + written, fileStream.Length);
+                    while (offset < fileStream.Length)
+                    {
+                        fileStream.Seek(offset, SeekOrigin.Begin);
+
+                        var bytesRead = await fileStream.ReadAsync(buffer, 0, uploadChunkSize);
+                        var segment = new ArraySegment<byte>(buffer, 0, bytesRead);
+                        var sha1Hash = sha.ComputeHash(buffer, 0, bytesRead);
+
+                        var request = new TusHttpRequest(url, RequestMethod.Patch, AdditionalHeaders, segment,
+                            cancellationToken);
+                        request.AddHeader(TusHeaderNames.UploadOffset, offset.ToString());
+                        request.AddHeader(TusHeaderNames.UploadChecksum, $"sha1 {Convert.ToBase64String(sha1Hash)}");
+                        request.AddHeader(TusHeaderNames.ContentType, "application/offset+octet-stream");
+
+                        try
+                        {
+                            request.UploadProgressed += OnProgress;
+                            var response = await client.PerformRequestAsync(request)
+                                .ConfigureAwait(false);
+                            request.UploadProgressed -= OnProgress;
+
+                            if (response.StatusCode != HttpStatusCode.NoContent)
+                            {
+                                throw new Exception("WriteFileInServer failed. " + response.ResponseString);
+                            }
+
+                            offset = long.Parse(response.Headers[TusHeaderNames.UploadOffset]);
+
+//                            reportProgress(offset, fileStream.Length);
+                        }
+                        catch (IOException ex)
+                        {
+                            if (ex.InnerException is SocketException socketException)
+                            {
+                                if (socketException.SocketErrorCode == SocketError.ConnectionReset)
+                                {
+                                    // retry by continuing the while loop
+                                    // but get new offset from server to prevent Conflict error
+                                    offset = await GetFileOffset(url)
+                                        .ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    throw;
+                                }
+                            }
+                            else
+                            {
+                                throw;
+                            }
+                        }
+                    }
+
+                    return Unit.Default;
+                }
+                finally
+                {
+                    fileStream.Dispose();
+                }
+            });
+
+        public TusOperation<TusHttpResponse> DownloadAsync(string url, CancellationToken cancellationToken = default) =>
+            new TusOperation<TusHttpResponse>(
+                async reportProgress =>
+                {
+                    var client = new TusHttpClient();
+                    var request = new TusHttpRequest(
+                        url,
+                        RequestMethod.Get,
+                        AdditionalHeaders,
+                        cancelToken: cancellationToken);
+
+                    request.DownloadProgressed += reportProgress;
+
                     var response = await client.PerformRequestAsync(request)
                         .ConfigureAwait(false);
 
-                    if (response.StatusCode != HttpStatusCode.NoContent)
-                    {
-                        throw new Exception("WriteFileInServer failed. " + response.ResponseString);
-                    }
+                    request.DownloadProgressed -= reportProgress;
 
-                    offset = long.Parse(response.Headers[TusHeaderNames.UploadOffset]);
-
-                    OnUploadProgress(offset, fileStream.Length);
-                }
-                catch (IOException ex)
-                {
-                    if (ex.InnerException is SocketException socketException)
-                    {
-                        if (socketException.SocketErrorCode == SocketError.ConnectionReset)
-                        {
-                            // retry by continuing the while loop
-                            // but get new offset from server to prevent Conflict error
-                            offset = await GetFileOffset(url)
-                                .ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-            }
-        }
-
-        public async Task<TusHttpResponse> DownloadAsync(string url)
-        {
-            var client = new TusHttpClient();
-            var request = new TusHttpRequest(url, RequestMethod.Get, AdditionalHeaders, cancelToken: _cancellationSource.Token);
-
-            request.DownloadProgressed += OnDownloadProgress;
-
-            var response = await client.PerformRequestAsync(request)
-                .ConfigureAwait(false);
-
-            request.DownloadProgressed -= OnDownloadProgress;
-            
-            return response;
-        }
+                    return response;
+                });
 
         public async Task<TusHttpResponse> HeadAsync(string url)
         {
@@ -211,12 +214,6 @@ namespace TusDotNetClient
                    response.StatusCode == HttpStatusCode.NotFound ||
                    response.StatusCode == HttpStatusCode.Gone;
         }
-
-        public void OnUploadProgress(long bytesTransferred, long bytesTotal) =>
-            UploadProgress?.Invoke(bytesTransferred, bytesTotal);
-
-        public void OnDownloadProgress(long bytesTransferred, long bytesTotal) =>
-            DownloadProgress?.Invoke(bytesTransferred, bytesTotal);
 
         private async Task<long> GetFileOffset(string url)
         {

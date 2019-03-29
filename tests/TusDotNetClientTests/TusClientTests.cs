@@ -18,7 +18,7 @@ namespace TusDotNetClientTests
         }
         
         [Theory]
-        [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
+        [MemberData(nameof(Fixture.TestFiles), MemberType = typeof(Fixture))]
         public async Task AfterCallingCreate_DataShouldContainAFile(FileInfo file)
         {
             var sut = new TusClient();
@@ -33,7 +33,7 @@ namespace TusDotNetClientTests
         }
 
         [Theory]
-        [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
+        [MemberData(nameof(Fixture.TestFiles), MemberType = typeof(Fixture))]
         public async Task AfterCallingCreateAndUpload_UploadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file)
         {
             var sut = new TusClient();
@@ -56,7 +56,7 @@ namespace TusDotNetClientTests
         }
 
         [Theory]
-        [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
+        [MemberData(nameof(Fixture.TestFiles), MemberType = typeof(Fixture))]
         public async Task AfterCallingDownload_DownloadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file)
         {
             var sut = new TusClient();
@@ -74,7 +74,7 @@ namespace TusDotNetClientTests
         }
 
         [Theory]
-        [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
+        [MemberData(nameof(Fixture.TestFiles), MemberType = typeof(Fixture))]
         public async Task CallingHead_ShouldReturnProgressOfUploadedFile(FileInfo file)
         {
             var sut = new TusClient();
@@ -103,7 +103,7 @@ namespace TusDotNetClientTests
         }
 
         [Theory]
-        [MemberData(nameof(Fixture.GetTestFiles), MemberType = typeof(Fixture))]
+        [MemberData(nameof(Fixture.TestFiles), MemberType = typeof(Fixture))]
         public async Task CallingDelete_ShouldRemoveUploadedFile(FileInfo file)
         {
             var sut = new TusClient();

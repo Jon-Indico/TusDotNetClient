@@ -83,14 +83,22 @@ namespace TusDotNetClient
             string url,
             FileInfo file,
             double chunkSize = 5.0,
-            CancellationToken cancellationToken = default) =>
-            UploadAsync(
+            CancellationToken cancellationToken = default)
+        {
+            FileStream fileStream = new FileStream(
+                    file.FullName,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    5 * 1024 * 1024,
+                    true);
+
+            return UploadAsync(
                 url,
-                new FileStream(file.FullName,
-                    FileMode.Open, FileAccess.Read, FileShare.Read,
-                    5 * 1024 * 1024, true),
+                fileStream,
                 chunkSize,
                 cancellationToken);
+        }
 
         /// <summary>
         /// Upload a file to the Tus server.
@@ -104,7 +112,9 @@ namespace TusDotNetClient
             string url,
             Stream fileStream,
             double chunkSize = 5.0,
-            CancellationToken cancellationToken = default) => new TusOperation<Unit>(
+            CancellationToken cancellationToken = default)
+        {
+            return new TusOperation<Unit>(
             async reportProgress =>
             {
                 try
@@ -115,7 +125,7 @@ namespace TusDotNetClient
                     var client = new TusHttpClient();
                     SHA1 sha = new SHA1Managed();
 
-                    var uploadChunkSize = (int) Math.Ceiling(chunkSize * 1024.0 * 1024.0); // to MB
+                    var uploadChunkSize = (int)Math.Ceiling(chunkSize * 1024.0 * 1024.0); // to MB
 
                     if (offset == fileStream.Length)
                         reportProgress(fileStream.Length, fileStream.Length);
@@ -153,7 +163,7 @@ namespace TusDotNetClient
 
                             offset = long.Parse(response.Headers[TusHeaderNames.UploadOffset]);
 
-//                            reportProgress(offset, fileStream.Length);
+                            //                            reportProgress(offset, fileStream.Length);
                         }
                         catch (IOException ex)
                         {
@@ -185,6 +195,7 @@ namespace TusDotNetClient
                     fileStream.Dispose();
                 }
             });
+        }
 
         /// <summary>
         /// Download a file from the Tus server.

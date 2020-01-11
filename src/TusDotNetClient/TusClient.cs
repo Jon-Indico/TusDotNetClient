@@ -90,7 +90,7 @@ namespace TusDotNetClient
                     FileMode.Open,
                     FileAccess.Read,
                     FileShare.Read,
-                    5 * 1024 * 1024,
+                    ChunkSizeToMB(chunkSize),
                     true);
 
             return UploadAsync(
@@ -125,7 +125,7 @@ namespace TusDotNetClient
                     var client = new TusHttpClient();
                     SHA1 sha = new SHA1Managed();
 
-                    var uploadChunkSize = (int)Math.Ceiling(chunkSize * 1024.0 * 1024.0); // to MB
+                    var uploadChunkSize = ChunkSizeToMB(chunkSize);
 
                     if (offset == fileStream.Length)
                         reportProgress(fileStream.Length, fileStream.Length);
@@ -305,6 +305,11 @@ namespace TusDotNetClient
                 throw new Exception("Offset Header Missing");
 
             return long.Parse(response.Headers[TusHeaderNames.UploadOffset]);
+        }
+
+        private static int ChunkSizeToMB(double chunkSize)
+        {
+            return (int)Math.Ceiling(chunkSize * 1024.0 * 1024.0);
         }
     }
 }

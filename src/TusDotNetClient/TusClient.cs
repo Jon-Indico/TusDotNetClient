@@ -109,7 +109,7 @@ namespace TusDotNetClient
         /// <param name="chunkSize">The size, in megabytes, of each file chunk when uploading.</param>
         /// <param name="cancellationToken">A cancellation token to cancel the operation with.</param>
         /// <returns>A <see cref="TusOperation{T}"/> which represents the upload operation.</returns>
-        public TusOperation<Unit> UploadAsync(
+        public TusOperation<List<TusHttpResponse>> UploadAsync(
             string url,
             FileInfo file,
             double chunkSize = 5.0,
@@ -138,13 +138,13 @@ namespace TusDotNetClient
         /// <param name="chunkSize">The size, in megabytes, of each file chunk when uploading.</param>
         /// <param name="cancellationToken">A cancellation token to cancel the operation with.</param>
         /// <returns>A <see cref="TusOperation{T}"/> which represents the upload operation.</returns>
-        public TusOperation<Unit> UploadAsync(
+        public TusOperation<List<TusHttpResponse>> UploadAsync(
             string url,
             Stream fileStream,
             double chunkSize = 5.0,
             CancellationToken cancellationToken = default)
         {
-            return new TusOperation<Unit>(
+            return new TusOperation<List<TusHttpResponse>>(
             async reportProgress =>
             {
                 try
@@ -165,6 +165,8 @@ namespace TusDotNetClient
                     void OnProgress(long written, long total) =>
                         reportProgress(offset + written, fileStream.Length);
 
+                    List<TusHttpResponse> responses = new List<TusHttpResponse>();
+
                     while (offset < fileStream.Length)
                     {
                         fileStream.Seek(offset, SeekOrigin.Begin);
@@ -184,6 +186,7 @@ namespace TusDotNetClient
                             request.UploadProgressed += OnProgress;
                             var response = await client.PerformRequestAsync(request)
                                 .ConfigureAwait(false);
+                            responses.Add(response);
                             request.UploadProgressed -= OnProgress;
 
                             if (response.StatusCode != HttpStatusCode.NoContent)
@@ -218,7 +221,7 @@ namespace TusDotNetClient
                         }
                     }
 
-                    return Unit.Default;
+                    return responses;
                 }
                 finally
                 {

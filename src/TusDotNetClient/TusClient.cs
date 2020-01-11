@@ -76,9 +76,12 @@ namespace TusDotNetClient
             request.AddHeader(TusHeaderNames.UploadLength, uploadLength.ToString());
             request.AddHeader(TusHeaderNames.ContentLength, "0");
 
-            request.AddHeader(TusHeaderNames.UploadMetadata, string.Join(",", metadata
-                .Select(md =>
-                    $"{md.key.Replace(" ", "").Replace(",", "")} {Convert.ToBase64String(Encoding.UTF8.GetBytes(md.value))}")));
+            if (metadata.Length > 0)
+            {
+                request.AddHeader(TusHeaderNames.UploadMetadata, string.Join(",", metadata
+                    .Select(md =>
+                        $"{md.key.Replace(" ", "").Replace(",", "")} {Convert.ToBase64String(Encoding.UTF8.GetBytes(md.value))}")));
+            }
 
             var response = await client.PerformRequestAsync(request)
                 .ConfigureAwait(false);

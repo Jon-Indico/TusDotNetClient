@@ -31,6 +31,33 @@ namespace TusDotNetClient
         /// Create a file at the Tus server.
         /// </summary>
         /// <param name="url">URL to the creation endpoint of the Tus server.</param>
+        /// <param name="fileInfo">The file which will be uploaded.</param>
+        /// <param name="metadata">Metadata to be stored alongside the file.</param>
+        /// <returns>The URL to the created file.</returns>
+        /// <exception cref="Exception">Throws if the response doesn't contain the required information.</exception>
+        public async Task<string> CreateAsync(string url, FileInfo fileInfo, params (string key, string value)[] metadata)
+        {
+            //You can enable this for .NET 4.5+
+            //Since filetype is optional in tus, leaving out for .NET 2.0 compatibility
+            ////string mimeType = System.Web.MimeMapping.GetMimeMapping(fileInfo.Name);
+            ////if (!metadata.All(m => m.key == "filetype"))
+            ////{
+            ////    metadata.Concat(new[] { ("filetype", mimeType) }).ToArray();
+            ////}
+            if (!metadata.Any(m => m.key == "filename"))
+            {
+                metadata = metadata.Concat(new[] { ("filename", fileInfo.Name) }).ToArray();
+            }
+
+            return await CreateAsync(url, fileInfo.Length, metadata);
+        }
+
+
+
+        /// <summary>
+        /// Create a file at the Tus server.
+        /// </summary>
+        /// <param name="url">URL to the creation endpoint of the Tus server.</param>
         /// <param name="uploadLength">The byte size of the file which will be uploaded.</param>
         /// <param name="metadata">Metadata to be stored alongside the file.</param>
         /// <returns>The URL to the created file.</returns>

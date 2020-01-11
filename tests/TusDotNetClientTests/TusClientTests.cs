@@ -19,13 +19,23 @@ namespace TusDotNetClientTests
         
         [Theory]
         [MemberData(nameof(Fixture.TestFiles), MemberType = typeof(Fixture))]
-        public async Task AfterCallingCreate_DataShouldContainAFile(FileInfo file)
+        public async Task AfterCallingCreate_DataShouldContainAFile(FileInfo file, bool passAsFileInfo)
         {
             var sut = new TusClient();
 
-            var url = await sut.CreateAsync(
+            string url;
+            if (passAsFileInfo)
+            {
+                url = await sut.CreateAsync(
+                "http://localhost:1080/files/",
+                file);
+            }
+            else
+            {
+                url = await sut.CreateAsync(
                 "http://localhost:1080/files/",
                 file.Length);
+            }
 
             var upload = new FileInfo(Path.Combine(_dataDirectoryPath, $"{url.Split('/').Last()}.bin"));
             upload.Exists.ShouldBe(true);
@@ -34,11 +44,20 @@ namespace TusDotNetClientTests
 
         [Theory]
         [MemberData(nameof(Fixture.TestFiles), MemberType = typeof(Fixture))]
-        public async Task AfterCallingCreateAndUpload_UploadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file)
+        public async Task AfterCallingCreateAndUpload_UploadedFileShouldBeTheSameAsTheOriginalFile(FileInfo file, bool passAsFileInfo)
         {
             var sut = new TusClient();
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
+            string url;
+            if (passAsFileInfo)
+            {
+                url = await sut.CreateAsync("http://localhost:1080/files/", file);
+            }
+            else
+            {
+                url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
+            }
+
             await sut.UploadAsync(url, file);
             
             var upload = new FileInfo(Path.Combine(_dataDirectoryPath, $"{url.Split('/').Last()}.bin"));

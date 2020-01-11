@@ -30,10 +30,12 @@ namespace TusDotNetClientTests
                 }
             }
 
-            TestFiles = new[]
+            TestFiles = new object[][]
             {
-                new[] {smallTextFile},
-                new[] {largeSampleFile},
+                new object[] {smallTextFile, true},
+                new object[] {largeSampleFile, true},
+                new object[] {smallTextFile, false},
+                new object[] {largeSampleFile, false},
             };
         }
 

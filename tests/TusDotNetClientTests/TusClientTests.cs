@@ -11,6 +11,7 @@ namespace TusDotNetClientTests
     public class TusClientTests : IClassFixture<Fixture>
     {
         private readonly string _dataDirectoryPath;
+        private const string TusEndpoint = @"http://localhost:1080/files/";
 
         public TusClientTests()
         {
@@ -27,13 +28,13 @@ namespace TusDotNetClientTests
             if (passAsFileInfo)
             {
                 url = await sut.CreateAsync(
-                "http://localhost:1080/files/",
+                TusEndpoint,
                 file);
             }
             else
             {
                 url = await sut.CreateAsync(
-                "http://localhost:1080/files/",
+                TusEndpoint,
                 file.Length);
             }
 
@@ -51,11 +52,11 @@ namespace TusDotNetClientTests
             string url;
             if (passAsFileInfo)
             {
-                url = await sut.CreateAsync("http://localhost:1080/files/", file);
+                url = await sut.CreateAsync(TusEndpoint, file);
             }
             else
             {
-                url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
+                url = await sut.CreateAsync(TusEndpoint, file.Length);
             }
 
             await sut.UploadAsync(url, file);
@@ -80,7 +81,7 @@ namespace TusDotNetClientTests
         {
             var sut = new TusClient();
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
+            var url = await sut.CreateAsync(TusEndpoint, file.Length);
             await sut.UploadAsync(url, file);
             var response = await sut.DownloadAsync(url);
             
@@ -98,7 +99,7 @@ namespace TusDotNetClientTests
         {
             var sut = new TusClient();
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
+            var url = await sut.CreateAsync(TusEndpoint, file.Length);
             var headBeforeUpload = await sut.HeadAsync(url);
             await sut.UploadAsync(url, file);
             var headAfterUpload = await sut.HeadAsync(url);
@@ -114,7 +115,7 @@ namespace TusDotNetClientTests
         {
             var sut = new TusClient();
 
-            var response = await sut.GetServerInfo("http://localhost:1080/files/");
+            var response = await sut.GetServerInfo(TusEndpoint);
 
             response.Version.ShouldNotBeNullOrWhiteSpace();
             response.Extensions.ShouldNotBeEmpty();
@@ -128,7 +129,7 @@ namespace TusDotNetClientTests
             var sut = new TusClient();
 
 
-            var url = await sut.CreateAsync("http://localhost:1080/files/", file.Length);
+            var url = await sut.CreateAsync(TusEndpoint, file.Length);
             await sut.UploadAsync(url, file);
             var uploadHeadResponse = await sut.HeadAsync(url);
             var deleteResult = await sut.Delete(url);

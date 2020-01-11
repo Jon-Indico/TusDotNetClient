@@ -57,6 +57,7 @@ namespace TusDotNetClientTests
         public void Dispose()
         {
             _tusProcess.Kill();
+            _tusProcess.Dispose();
             DataDirectory.Delete(true);
         }
     }

@@ -145,7 +145,7 @@ namespace TusDotNetClient
                             .ConfigureAwait(false);
 
                         var client = new TusHttpClient();
-                        SHA1 sha = new SHA1Managed();
+                        System.Security.Cryptography.SHA1CryptoServiceProvider sha = new System.Security.Cryptography.SHA1CryptoServiceProvider();
 
                         var uploadChunkSize = ChunkSizeToMB(chunkSize);
 

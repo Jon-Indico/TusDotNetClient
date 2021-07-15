@@ -40,8 +40,8 @@ namespace TusDotNetClient
         {
             StatusCode = statusCode;
             Headers = headers is null
-                ? new Dictionary<string, string>(0)
-                : new Dictionary<string, string>(headers);
+                ? new Dictionary<string, string>(0, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
             ResponseBytes = responseBytes;
         }
     }

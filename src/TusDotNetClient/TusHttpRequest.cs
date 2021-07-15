@@ -76,8 +76,8 @@ namespace TusDotNetClient
             CancelToken = cancelToken ?? CancellationToken.None;
 
             _headers = additionalHeaders is null
-                ? new Dictionary<string, string>(1)
-                : new Dictionary<string, string>(additionalHeaders); 
+                ? new Dictionary<string, string>(1, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(additionalHeaders, StringComparer.OrdinalIgnoreCase); 
             _headers.Add(TusHeaderNames.TusResumable, "1.0.0");
         }
 
